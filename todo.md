@@ -1,0 +1,7 @@
+- make a git repo
+- add pause time to operation after action accured -> add enum for steps in operation
+- try to hide callMain function from user if possible
+- add function to modify heap allocated data
+- improve location setting for heap allocations
+- seperate out heap location from stack to different regions
+- add support for arrays (slices) on the heap
