@@ -46,26 +46,29 @@ pub fn update(self: *Self, interval_ns: f64, view: ?*View) void {
 
     const current_op = &self.op_queue.items[self.current];
     if (view) |v| {
-        if (current_op.first_update) {
-            if (current_op.camera_motion) |*motion| {
+        if (current_op.camera_motion) |*motion| {
+            if (motion.passed == 0) {
                 motion.start = v.cam;
                 //adjust ratio to port in oreder to prevent stretching of textures while zooming
                 motion.end = helpers.sameRatioRect(sdl.rect.FloatingType, motion.end, .{ .x = @floatFromInt(v.port.w), .y = @floatFromInt(v.port.h) });
             }
         }
     }
-    switch (self.op_queue.items[self.current].update(interval_ns, self.allocator)) {
-        .action => |undo| {
-            self.undo_queue.append(undo) catch @panic("failed to append undo action");
-            self.current += 1;
-            //  std.debug.print("\x1B[2J\x1B[H", .{});
-            //  self.printAllUndo();
-        },
-        .animation_state => |rect| {
-            if (view) |v| {
-                v.cam = rect;
-            }
-        },
+
+    if (self.op_queue.items[self.current].update(interval_ns, self.allocator)) |ret| {
+        switch (ret) {
+            .action => |undo| {
+                self.undo_queue.append(undo) catch @panic("failed to append undo action");
+            },
+            .animation_state => |rect| {
+                if (view) |v| {
+                    v.cam = rect;
+                }
+            },
+            .done => {
+                self.current += 1;
+            },
+        }
     }
 }
 

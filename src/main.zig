@@ -23,19 +23,19 @@ const two_nums = struct {
     num2: i32 = 420,
 };
 const three_nums = struct {
-    num1: i32 = 1,
-    num2: i32 = 2,
-    num3: i32 = 3,
+    num1: i64 = 1,
+    num2: i8 = 2,
+    num3: f128 = 3,
+    num4: u256 = 3,
 };
 
 pub fn main() !void {
     var program = try Program.init(gpa.allocator());
     global_program = program;
-    const int = program.heap.create(two_nums{}, gpa.allocator());
-    const other = program.heap.create(three_nums{}, gpa.allocator());
-    _ = program.stack.call(add, .{ int.num1, int.num2 }, "add");
-    program.heap.destroy(int, gpa.allocator());
-    program.heap.destroy(other, gpa.allocator());
+    const ptr = program.heap.create(three_nums{}, gpa.allocator());
+
+    _ = program.stack.call(add, .{ 3, 4 }, "add");
+    program.heap.destroy(ptr, gpa.allocator());
 
     program.start();
     program.deinit();

@@ -28,7 +28,7 @@ pub fn initSDL(allocator: std.mem.Allocator) !struct { sdl.video.Window, sdl.ren
         "my window",
         1920,
         1080,
-        .{ .resizable = true, .maximized = false, .fullscreen = false },
+        .{ .resizable = true, .maximized = false, .fullscreen = false, .vulkan = true },
     );
     const renderer = try sdl.render.Renderer.init(window, null);
     exe_path = try std.fs.selfExeDirPathAlloc(allocator);

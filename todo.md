@@ -1,7 +1,10 @@
-- make a git repo
-- add pause time to operation after action accured -> add enum for steps in operation
-- try to hide callMain function from user if possible
-- add function to modify heap allocated data
-- improve location setting for heap allocations
-- seperate out heap location from stack to different regions
-- add support for arrays (slices) on the heap
+ - test more complex structures in heap.
+ - seperate heap and stack to different areas
+ - add background textures for stack, heap and UI
+ - redisign ui to look nicer
+ - properly implement undo and fastforward
+ - add button ui element
+ - make fastforward and and undo arrows around current action in ui
+ - improve location setting for heap allocations (BIG)
+ - implement pointers for heap (with arrows)
+ - implement linked list in a standart library

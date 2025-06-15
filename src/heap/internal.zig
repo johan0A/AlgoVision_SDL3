@@ -21,14 +21,23 @@ pub const Block = struct {
 
     pub fn init(val: anytype, design: Design, allocator: std.mem.Allocator, pos: sdl.rect.IPoint) Block {
         var fields = std.ArrayList(Field).init(allocator);
-        if (@typeInfo(@TypeOf(val)) == .@"struct") {
-            inline for (std.meta.fields(@TypeOf(val))) |field| {
-                fields.append(Field.init(@field(val, field.name), allocator) catch @panic("field init failure")) catch @panic("alloc error");
-            }
-        } else {
-            fields.append(Field.init(val, allocator) catch @panic("field init failure")) catch @panic("alloc error");
+        switch (@typeInfo(@TypeOf(val))) {
+            .@"struct" => {
+                inline for (std.meta.fields(@TypeOf(val))) |field| {
+                    fields.append(Field.init(@field(val, field.name), allocator) catch @panic("field init failure")) catch @panic("alloc error");
+                }
+            },
+            .pointer => |ptr| {
+                if (ptr.size == .slice) {
+                    for (val) |elm| {
+                        fields.append(Field.init(elm, allocator) catch @panic("field init failure")) catch @panic("alloc error");
+                    }
+                }
+            },
+            else => { // Handles pointers and other simple types
+                fields.append(Field.init(val, allocator) catch @panic("field init failure")) catch @panic("alloc error");
+            },
         }
-
         const top_width = blk: {
             var top: usize = 0;
             for (fields.items) |field| {
@@ -52,7 +61,6 @@ pub const Block = struct {
 
         var rect = Self.scaleRect(self.rect, scale);
         if (view) |v| rect = v.convertRect(sdl.rect.IntegerType, rect);
-
         try renderer.renderTexture(self.texture_cache.?, null, rect.asOtherRect(sdl.rect.FloatingType));
     }
 
@@ -65,17 +73,15 @@ pub const Block = struct {
         try renderer.setTarget(texture);
 
         //       Draw background texture tiled
-        for (0..@as(usize, @intCast(self.rect.h))) |height| {
-            for (0..@as(usize, @intCast(self.rect.w))) |width| {
-                try renderer.renderTexture(bg_texture, null, (sdl.rect.Rect(usize){ .x = width * scale, .y = height * scale, .w = scale, .h = scale }).asOtherRect(sdl.rect.FloatingType));
-            }
-        }
 
         //     Draw each field's text
         for (self.fields.items, 0..) |field, i| {
             const text_texture = try helpers.createTextureFromText(self.design.font, field.val, self.design.text_color, renderer);
             defer text_texture.deinit();
 
+            for (0..@max(field.val.len, field.size)) |width| {
+                try renderer.renderTexture(bg_texture, null, (sdl.rect.Rect(usize){ .x = width * scale, .y = @as(usize, @intCast(self.rect.y)) + i * scale, .w = scale, .h = scale }).asOtherRect(sdl.rect.FloatingType));
+            }
             const text_rect =
                 sdl.rect.FRect{ .x = 0, .y = @as(f32, @floatFromInt(i * scale)), .w = @as(f32, @floatFromInt(field.val.len * scale)), .h = @as(f32, @floatFromInt(scale)) };
             try renderer.renderTexture(text_texture, null, text_rect);
@@ -150,6 +156,12 @@ pub fn destroy(self: *Self, ptr: *anyopaque) void {
     } else @panic("tried to destoy non existing memory");
 }
 
+pub fn override(self: *Self, ptr: *anyopaque, block: Block) void {
+    const block_ptr = self.blocks.getPtr(ptr) orelse @panic("writing to non allocated memory");
+    block_ptr.deinit(self.allocator);
+    block_ptr.* = block;
+}
+
 pub fn init(allocator: std.mem.Allocator, renderer: ?sdl.render.Renderer, block_texture_path: []const u8, font: *ttf.TTF_Font) !Self {
     return Self{
         .blocks = std.hash_map.AutoHashMap(*anyopaque, Block).init(allocator),
@@ -189,7 +201,8 @@ const Field = struct {
     pub fn init(val: anytype, allocator: std.mem.Allocator) !Field {
         const val_size = @sizeOf(@TypeOf(val));
         const size_str = std.fmt.comptimePrint("{d}", .{val_size});
-        const formatted_val = try std.fmt.allocPrint(allocator, "{: ^" ++ size_str ++ "}", .{val});
+        const is_char = @TypeOf(val) == u8;
+        const formatted_val = try std.fmt.allocPrint(allocator, if (is_char) "{c}" else "{: ^" ++ size_str ++ "}", .{val});
         return Field{
             .size = val_size,
             .val = formatted_val,

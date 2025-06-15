@@ -36,23 +36,6 @@ pub fn call(self: *Self, function: anytype, args: anytype, comptime name: ?[]con
 
     return ret;
 }
-pub fn callMain(self: *Self, allocator: std.mem.Allocator) void {
-    const motion = Camera.init(
-        3_000_000_000,
-        .{ .x = 0, .y = 0, .w = 1920, .h = 1080 },
-        self.data.base_rect,
-    );
-    self.operations.append(.{
-        .action = .{
-            .call = .{
-                .stack = &self.data,
-                .new_text = allocator.dupe(u8, "main()") catch unreachable,
-            },
-        },
-        .camera_motion = motion,
-    });
-    self.stack_height += 1;
-}
 
 fn callRetType(function: anytype) type {
     const type_info = @typeInfo(@TypeOf(function));

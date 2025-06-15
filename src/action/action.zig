@@ -4,10 +4,15 @@ const stack = @import("../stack/internal.zig");
 const heap = @import("../heap/internal.zig");
 
 pub const Action = union(enum) {
+    //stack
     call: struct { stack: *stack, new_text: []const u8 },
     eval: struct { stack: *stack, new_text: []const u8 },
+
+    //heap
     create: struct { heap: *heap, block: heap.Block, ptr: *anyopaque },
     destroy: struct { heap: *heap, ptr: *anyopaque },
+    override: struct { heap: *heap, block: heap.Block, ptr: *anyopaque },
+
     pop: *stack,
 
     ///performs a given action.
@@ -36,7 +41,12 @@ pub const Action = union(enum) {
             .destroy => |data| {
                 var ret = data.heap.blocks.get(data.ptr).?.deepCopy(allocator);
                 data.heap.destroy(data.ptr);
-                return .{ .create = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(&ret) } }; // for creation on undo ptr is meaningless so I just assign a unique addess
+                return .{ .create = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(&ret) } }; // for creation undo, ptr is meaningless so I just assign a unique addess
+            },
+            .override => |data| {
+                var ret = data.heap.blocks.get(data.ptr).?.deepCopy(allocator);
+                data.heap.override(data.ptr, data.block.deepCopy(data.heap.allocator));
+                return .{ .override = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(&ret) } }; // for creation undo, ptr is meaningless so I just assign a unique addess
             },
         }
         unreachable;
@@ -54,6 +64,9 @@ pub const Action = union(enum) {
                 data.block.deinit(allocator);
             },
             .destroy => |_| {},
+            .override => |data| {
+                data.block.deinit(allocator);
+            },
         }
     }
     pub fn name(action: Action) []const u8 {

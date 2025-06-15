@@ -6,6 +6,7 @@ const Helpers = @import("SDL_helpers.zig");
 const OperationManager = @import("action/operation_manager.zig");
 const UI = @import("ui/UI.zig");
 const Stack = @import("stack/interface.zig");
+const Camera = @import("camera_motion.zig");
 const Heap = @import("heap/interface.zig");
 const main = @import("main.zig");
 const ui_bg = main.ui_bg;
@@ -111,11 +112,27 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
         .data = try Stack.Internal.init(allocator, renderer, .{ .x = 50, .y = 800, .w = 600, .h = 100 }, "assets/method.png", stack_font),
         .operations = &ret.op_manager,
     };
-    try ret.heap.init(&ret.op_manager, ret.allocator, renderer, "assets/cloud.png", stack_font);
-    ret.stack.callMain(allocator);
+    try ret.heap.init(&ret.op_manager,.{.x = 100, .y = 0, .w = 512, .h = 512}, ret.allocator, renderer, "assets/cloud.png", stack_font);
+    ret.callMain();
     return ret;
 }
-
+fn callMain(self: *Self) void {
+    const motion = Camera.init(
+        3_000_000_000,
+        .{ .x = 0, .y = 0, .w = 1920, .h = 1080 },
+        self.stack.data.base_rect,
+    );
+    self.op_manager.append(.{
+        .action = .{
+            .call = .{
+                .stack = &self.stack.data,
+                .new_text = self.op_manager.allocator.dupe(u8, "main()") catch unreachable,
+            },
+        },
+        .camera_motion = motion,
+    });
+    self.stack.stack_height += 1;
+}
 /// deinitiallize the program
 pub fn deinit(self: *Self) void {
     self.stack.data.deinit();
