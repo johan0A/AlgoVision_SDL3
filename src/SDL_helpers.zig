@@ -115,3 +115,11 @@ pub inline fn functionFormat(name: []const u8, args: anytype) []const u8 {
         return fmt;
     }
 }
+
+// pub inline fn pointerFields(T: type) [][]const u8 {
+// var fields: [][]const u8 = switch (@typeInfo(T)) {
+// .
+//
+// }
+//
+// }

@@ -5,9 +5,9 @@ const View = @import("view.zig");
 const Helpers = @import("SDL_helpers.zig");
 const OperationManager = @import("action/operation_manager.zig");
 const UI = @import("ui/UI.zig");
-const Stack = @import("stack/interface.zig");
+pub const Stack = @import("stack/interface.zig");
 const Camera = @import("camera_motion.zig");
-const Heap = @import("heap/interface.zig");
+pub const Heap = @import("heap/interface.zig");
 const main = @import("main.zig");
 const ui_bg = main.ui_bg;
 const main_bg = main.main_bg;
@@ -112,8 +112,8 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
         .data = try Stack.Internal.init(allocator, renderer, .{ .x = 50, .y = 800, .w = 600, .h = 100 }, "assets/method.png", stack_font),
         .operations = &ret.op_manager,
     };
-    try ret.heap.init(&ret.op_manager,.{.x = 100, .y = 0, .w = 512, .h = 512}, ret.allocator, renderer, "assets/cloud.png", stack_font);
-    ret.callMain();
+    try ret.heap.init(&ret.op_manager, .{ .x = 100, .y = 0, .w = 512, .h = 512 }, ret.allocator, renderer, "assets/cloud.png", stack_font);
+    //   ret.callMain();
     return ret;
 }
 fn callMain(self: *Self) void {
@@ -145,9 +145,10 @@ pub fn deinit(self: *Self) void {
 
 /// run main program loop
 pub fn start(self: *Self) void {
+    self.op_manager.printAll();
     var timer = std.time.Timer.start() catch @panic("clock error");
+    var lap_time: u64 = 0;
     while (self.running) {
-        timer.reset();
         self.current_action = self.op_manager.currentActionName() orelse "Done!";
         while (sdl.events.poll()) |ev| {
             handleEvent(self, &ev);
@@ -160,11 +161,15 @@ pub fn start(self: *Self) void {
             }
             @panic("drawing failure");
         };
-        const augmented_time = @as(f64, @floatFromInt(timer.read())) * self.playback_speed;
+        const augmented_time = @as(f64, @floatFromInt(lap_time)) * self.playback_speed;
         self.op_manager.update(
             if (self.pause) 0 else augmented_time,
             if (self.freecam) null else &self.main_view,
         );
+        const passed = timer.read();
+        if (passed < 4_000_000)
+            std.time.sleep(4_000_000 - passed);
+        lap_time = timer.lap();
     }
 }
 

@@ -47,13 +47,8 @@ pub fn build(b: *std.Build) void {
     // causes a weird runtime error i couldn't figure resolve.
     // for some odd reason, linking this dependency fixes the issue.
     // temporeraly using it until the issue gets fixed because this repo seems to be unmaintained.
-    const sdl_ttf_dep = b.dependency("sdl_ttf", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    const sdl_ttf_lib = sdl_ttf_dep.artifact("SDL_ttf");
 
-    exe_mod.linkLibrary(sdl_ttf_lib);
+    //exe_mod.linkLibrary(sdl_ttf_lib);
 
     // Modules can depend on one another using the `std.Build.Module.addImport` function.
     // This is what allows Zig source code to use `@import("foo")` where 'foo' is not a

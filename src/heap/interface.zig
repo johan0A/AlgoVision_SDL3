@@ -118,7 +118,7 @@ pub fn update(self: *Self, ptr: anytype) void {
     const real_ptr = if (is_slice) ptr.ptr else ptr;
     const existing_rect = self.existing_rects.getPtr(real_ptr) orelse @panic("updating non allocated memory");
     const block =
-        Internal.Block.init(ptr, .{ .font = self.data.default_font, .text_color = .{ .r = 255, .g = 0, .b = 0, .a = 255 } }, self.operations.allocator, .{ .x = existing_rect.x, .y = existing_rect.y });
+        Internal.Block.init(ptr.*, .{ .font = self.data.default_font, .text_color = .{ .r = 255, .g = 0, .b = 0, .a = 255 } }, self.operations.allocator, .{ .x = existing_rect.x, .y = existing_rect.y });
     existing_rect.* = block.rect;
     self.operations.append(.{
         .action = .{
@@ -150,13 +150,15 @@ fn gappedRect(rect: sdl.rect.IRect, gap: sdl.rect.IntegerType) sdl.rect.IRect {
 fn calculateNewPos(self: *const Self) sdl.rect.IPoint {
     const lowest_block: sdl.rect.IRect = blk: {
         var it = self.existing_rects.iterator();
-        var lowest: sdl.rect.IRect = (it.next() orelse break :blk .{ .x = self.area.x, .y = self.area.y, .w = 1, .h = 1 }).value_ptr.*;
+        var lowest: sdl.rect.IRect = .{ .x = self.area.x, .y = self.area.y, .w = 1, .h = 1 };
         while (it.next()) |ref| {
             const rect = ref.value_ptr.*;
-            if (rect.y < lowest.y)
+            std.debug.print("{d}, {d}, {d}, {d}\n", rect);
+            if (rect.y > lowest.y)
                 lowest = rect;
         }
         break :blk lowest;
     };
+    std.debug.print("________________\n", .{});
     return .{ .x = lowest_block.x, .y = lowest_block.y + lowest_block.h + 2 };
 }

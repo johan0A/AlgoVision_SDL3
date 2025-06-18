@@ -103,8 +103,11 @@ pub fn printAll(self: *Self) void {
             .pop => |_| {
                 std.debug.print("pop!\t\n", .{});
             },
-            .create => |_| {
-                std.debug.print("create!\t\n", .{});
+            .create => |data| {
+                std.debug.print("create:\t{s}\n", .{data.block.fields.items[0].val});
+            },
+            .override => |data| {
+                std.debug.print("override: {s}", .{data.block.fields.items[0].val});
             },
             .destroy => |_| {
                 std.debug.print("destroy!\t\n", .{});

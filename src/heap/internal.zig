@@ -21,23 +21,7 @@ pub const Block = struct {
 
     pub fn init(val: anytype, design: Design, allocator: std.mem.Allocator, pos: sdl.rect.IPoint) Block {
         var fields = std.ArrayList(Field).init(allocator);
-        switch (@typeInfo(@TypeOf(val))) {
-            .@"struct" => {
-                inline for (std.meta.fields(@TypeOf(val))) |field| {
-                    fields.append(Field.init(@field(val, field.name), allocator) catch @panic("field init failure")) catch @panic("alloc error");
-                }
-            },
-            .pointer => |ptr| {
-                if (ptr.size == .slice) {
-                    for (val) |elm| {
-                        fields.append(Field.init(elm, allocator) catch @panic("field init failure")) catch @panic("alloc error");
-                    }
-                }
-            },
-            else => { // Handles pointers and other simple types
-                fields.append(Field.init(val, allocator) catch @panic("field init failure")) catch @panic("alloc error");
-            },
-        }
+        appendFields(val, &fields, allocator);
         const top_width = blk: {
             var top: usize = 0;
             for (fields.items) |field| {
@@ -52,6 +36,41 @@ pub const Block = struct {
             .texture_cache = null,
             .design = design,
         };
+    }
+
+    fn appendFields(val: anytype, fields: *std.ArrayList(Field), allocator: std.mem.Allocator) void {
+        switch (@typeInfo(@TypeOf(val))) {
+            .@"struct" => {
+                inline for (std.meta.fields(@TypeOf(val))) |field| {
+                    appendFields(@field(val, field.name), fields, allocator);
+                }
+            },
+            .pointer => |ptr| {
+                if (ptr.size == .slice) {
+                    if (ptr.child == u8) {
+                        fields.append(Field.init(val, allocator) catch @panic("field init failure")) catch @panic("alloc error");
+                    } else {
+                        for (val) |elm| {
+                            appendFields(elm, fields, allocator);
+                        }
+                    }
+                } else if (ptr.size == .one) {
+                    var fld = Field.init(@as(*anyopaque, @ptrCast(val)), allocator) catch @panic("field init failure");
+                    fld.ptr = @ptrCast(val);
+                    fields.append(fld) catch @panic("alloc error");
+                }
+            },
+            .optional => {
+                if (val) |real| {
+                    appendFields(real, fields, allocator);
+                } else {
+                    fields.append(Field.init(&"null", allocator) catch @panic("field init failure")) catch @panic("alloc error");
+                }
+            },
+            else => { // Handles pointers and other simple types
+                fields.append(Field.init(val, allocator) catch @panic("field init failure")) catch @panic("alloc error");
+            },
+        }
     }
 
     pub fn draw(self: *Block, renderer: sdl.render.Renderer, block_texture: sdl.render.Texture, view: ?View, scale: usize) !void {
@@ -102,7 +121,7 @@ pub const Block = struct {
         // copy all field strings
         var new_fields = std.ArrayList(Field).initCapacity(allocator, self.fields.items.len) catch @panic("alloc error");
         for (self.fields.items) |*field| {
-            new_fields.appendAssumeCapacity(.{ .size = field.size, .val = allocator.dupe(u8, field.val) catch @panic("alloc error") });
+            new_fields.appendAssumeCapacity(.{ .size = field.size, .val = allocator.dupe(u8, field.val) catch @panic("alloc error"), .ptr = field.ptr });
         }
 
         return Block{
@@ -158,6 +177,9 @@ pub fn destroy(self: *Self, ptr: *anyopaque) void {
 
 pub fn override(self: *Self, ptr: *anyopaque, block: Block) void {
     const block_ptr = self.blocks.getPtr(ptr) orelse @panic("writing to non allocated memory");
+    for (block.fields.items) |*field| {
+        field.pointerToPos(self.blocks, self.allocator);
+    }
     block_ptr.deinit(self.allocator);
     block_ptr.* = block;
 }
@@ -198,15 +220,28 @@ pub fn draw(self: *Self, renderer: sdl.render.Renderer, view: ?View) !void {
 const Field = struct {
     size: usize,
     val: []u8,
+    ptr: ?*anyopaque,
     pub fn init(val: anytype, allocator: std.mem.Allocator) !Field {
         const val_size = @sizeOf(@TypeOf(val));
         const size_str = std.fmt.comptimePrint("{d}", .{val_size});
-        const is_char = @TypeOf(val) == u8;
-        const formatted_val = try std.fmt.allocPrint(allocator, if (is_char) "{c}" else "{: ^" ++ size_str ++ "}", .{val});
+        const fmt = switch (@TypeOf(val)) {
+            u8 => "{c}",
+            []u8 => "{s}",
+            []const u8 => "{s}",
+            else => "{: ^" ++ size_str ++ "}",
+        };
+        const formatted_val = try std.fmt.allocPrint(allocator, fmt, .{val});
         return Field{
             .size = val_size,
             .val = formatted_val,
+            .ptr = if (@TypeOf(val) == *anyopaque) val else null,
         };
+    }
+    fn pointerToPos(self: *Field, blocks: std.hash_map.AutoHashMap(*anyopaque, Block), allocator: std.mem.Allocator) void {
+        const ptr = self.ptr orelse return;
+        allocator.free(self.val);
+        const coords: sdl.rect.IPoint = if (blocks.get(ptr)) |blk| .{ .x = blk.rect.x, .y = blk.rect.y } else .{ .x = 0, .y = 0 };
+        self.val = std.fmt.allocPrint(allocator, "{d} , {d}", coords) catch @panic("alloc error");
     }
 };
 
