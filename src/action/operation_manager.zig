@@ -74,13 +74,24 @@ pub fn update(self: *Self, interval_ns: f64, view: ?*View) void {
 
 pub fn undoLast(self: *Self) void {
     if (self.current < 2) return;
-    self.current -= 1;
+    const current = &self.op_queue.items[self.current];
+    if (current.wasPerformed()) {
+        current.reset();
+    } else {
+        self.current -= 1;
+    }
     const last_action = self.undo_queue.pop() orelse unreachable;
-    const undone = last_action.perform(self.allocator);
+    last_action.perform(self.allocator, true);
     last_action.deinit(self.allocator);
-    undone.deinit(self.allocator);
     //    std.debug.print("\x1B[2J\x1B[H", .{});
     //    self.printAllUndo();
+}
+pub fn fastForward(self: *Self) void {
+    const current = &self.op_queue.items[self.current];
+    if (!current.wasPerformed()) {
+        self.undo_queue.append(current.action.perform(self.allocator, false)) catch @panic("alloc error");
+    }
+    current.current_step = .done;
 }
 
 pub fn endCamState(self: *const Self) sdl.rect.FRect {

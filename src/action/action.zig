@@ -17,39 +17,46 @@ pub const Action = union(enum) {
 
     ///performs a given action.
     ///returns an action that undo it (allocator used for resources allocation)
-    pub fn perform(action: Action, allocator: std.mem.Allocator) Action {
+    pub fn perform(action: Action, allocator: std.mem.Allocator, comptime is_undo: bool) if (is_undo) void else Action {
         switch (action) {
             .call => |data| {
                 data.stack.push(data.new_text) catch @panic("failed to push new text");
-                return .{ .pop = data.stack };
+                if (!is_undo) return .{ .pop = data.stack };
             },
             .eval => |data| {
                 const last_text = data.stack.stack_frame.items[data.stack.stack_frame.items.len - 1].text;
                 data.stack.topBlock().setText(data.new_text, data.stack.allocator);
-                return .{ .eval = .{ .stack = data.stack, .new_text = allocator.dupe(u8, last_text) catch unreachable } };
+                if (!is_undo) return .{ .eval = .{ .stack = data.stack, .new_text = allocator.dupe(u8, last_text) catch unreachable } };
             },
 
             .pop => |data| {
                 const top_block = data.stack_frame.pop() orelse @panic("pop an empty stack");
                 defer top_block.deinit(data.allocator);
-                return .{ .call = .{ .stack = data, .new_text = allocator.dupe(u8, top_block.text) catch unreachable } };
+                if (!is_undo) return .{ .call = .{ .stack = data, .new_text = allocator.dupe(u8, top_block.text) catch unreachable } };
             },
             .create => |data| {
                 data.heap.push(data.ptr, data.block.deepCopy(data.heap.allocator)) catch unreachable;
-                return .{ .destroy = .{ .heap = data.heap, .ptr = data.ptr } };
+                if (!is_undo) return .{ .destroy = .{ .heap = data.heap, .ptr = data.ptr } };
             },
             .destroy => |data| {
-                var ret = data.heap.blocks.get(data.ptr).?.deepCopy(allocator);
-                data.heap.destroy(data.ptr);
-                return .{ .create = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(&ret) } }; // for creation undo, ptr is meaningless so I just assign a unique addess
+                if (is_undo) {
+                    data.heap.destroy(data.ptr);
+                } else {
+                    const ret = data.heap.blocks.get(data.ptr).?.deepCopy(allocator);
+                    data.heap.destroy(data.ptr);
+                    return .{ .create = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(data.ptr) } }; // for creation undo, ptr is meaningless so I just assign a unique addess
+                }
             },
             .override => |data| {
-                var ret = data.heap.blocks.get(data.ptr).?.deepCopy(allocator);
-                data.heap.override(data.ptr, data.block.deepCopy(data.heap.allocator));
-                return .{ .override = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(&ret) } }; // for creation undo, ptr is meaningless so I just assign a unique addess
+                if (is_undo) {
+                    data.heap.override(data.ptr, data.block.deepCopy(data.heap.allocator));
+                } else {
+                    const ret = data.heap.blocks.get(data.ptr).?.deepCopy(allocator);
+                    data.heap.override(data.ptr, data.block.deepCopy(data.heap.allocator));
+                    return .{ .override = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(data.ptr) } }; // for creation undo, ptr is meaningless so I just assign a unique addess
+                }
             },
         }
-        unreachable;
     }
     pub fn deinit(action: Action, allocator: std.mem.Allocator) void {
         switch (action) {

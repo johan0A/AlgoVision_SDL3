@@ -28,7 +28,7 @@ pub fn update(self: *Self, interval_ns: f64, allocator: std.mem.Allocator) ?unio
         },
         .act => {
             self.current_step.iterate();
-            return .{ .action = self.action.perform(allocator) };
+            return .{ .action = self.action.perform(allocator, false) };
         },
         .pause => {
             self.pause.update(interval_ns);
@@ -38,7 +38,7 @@ pub fn update(self: *Self, interval_ns: f64, allocator: std.mem.Allocator) ?unio
             return null;
         },
         .done => {
-            //self.reset();
+            self.reset();
             return .{ .done = {} };
         },
     }
@@ -54,6 +54,9 @@ pub fn reset(self: *Self) void {
     }
     self.pause.passed = 0;
     self.current_step = @enumFromInt(0);
+}
+pub fn wasPerformed(self: *const Self) bool {
+    return @intFromEnum(self.current_step) > @intFromEnum(Steps.act);
 }
 
 const Steps = enum(u8) {

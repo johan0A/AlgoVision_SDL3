@@ -9,7 +9,6 @@ pub const Stack = @import("stack/interface.zig");
 const Camera = @import("camera_motion.zig");
 pub const Heap = @import("heap/interface.zig");
 const main = @import("main.zig");
-const ui_bg = main.ui_bg;
 const main_bg = main.main_bg;
 const Self = @This();
 
@@ -43,6 +42,7 @@ freecam_checkbox: UI.Checkbox,
 action_display: UI.Text,
 pause_checkbox: UI.Checkbox,
 ui_texture: sdl.render.Texture = undefined,
+ui_bg: sdl.render.Texture,
 
 // runtime data
 running: bool = true,
@@ -97,14 +97,15 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
         .heap = undefined,
         .current_action = "Test",
         .ui_texture = try renderer.createTexture(.packed_rgba_8_8_8_8, .target, 1000, 2000),
+        .ui_bg = try Helpers.loadImage(renderer, "assets/ui/menu.png", allocator),
         .speed_slider = UI.Slider.init(
             &ret.playback_speed,
-            .{ .x = 100, .y = 100, .w = 600, .h = 100 },
+            .{ .x = 100, .y = 300, .w = 600, .h = 100 },
             .{ .range = .{ .min = 0.2, .max = 10 }, .show_text = true, .text_font = stack_font },
         ),
-        .pause_checkbox = UI.Checkbox.init(&ret.pause, .{ .x = 750, .y = 100, .w = 100, .h = 100 }),
-        .freecam_checkbox = UI.Checkbox.init(&ret.freecam, .{ .x = 100, .y = 250, .w = 100, .h = 100 }),
-        .action_display = UI.Text.init(&ret.current_action, .{ .x = 100, .y = 400, .w = 600, .h = 200 }, .{ .font = stack_font }),
+        .pause_checkbox = UI.Checkbox.init(&ret.pause, .{ .x = 750, .y = 300, .w = 100, .h = 100 }),
+        .freecam_checkbox = UI.Checkbox.init(&ret.freecam, .{ .x = 100, .y = 450, .w = 100, .h = 100 }),
+        .action_display = UI.Text.init(&ret.current_action, .{ .x = 100, .y = 600, .w = 600, .h = 200 }, .{ .font = stack_font }),
     };
 
     //members must be initiallized after ret has been allocated
@@ -112,7 +113,7 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
         .data = try Stack.Internal.init(allocator, renderer, .{ .x = 50, .y = 800, .w = 600, .h = 100 }, "assets/method.png", stack_font),
         .operations = &ret.op_manager,
     };
-    try ret.heap.init(&ret.op_manager, .{ .x = 100, .y = 0, .w = 512, .h = 512 }, ret.allocator, renderer, "assets/cloud.png", stack_font);
+    try ret.heap.init(&ret.op_manager, .{ .x = 100, .y = 0, .w = 512, .h = 512 }, ret.allocator, renderer, "assets/heap.png", "assets/cloud.png", stack_font);
     //   ret.callMain();
     return ret;
 }
@@ -190,6 +191,9 @@ fn handleEvent(self: *Self, event: *const sdl.events.Event) void {
             .left => {
                 self.op_manager.undoLast();
             },
+            .right => {
+                self.op_manager.fastForward();
+            },
             .space => {
                 self.pause = !self.pause;
             },
@@ -235,8 +239,7 @@ fn draw(self: *Self) !void {
 
     // draw ui to a seperate texture to prevent clipping with main view
     try self.renderer.setTarget(self.ui_texture);
-    try self.renderer.setDrawColor(ui_bg);
-    try self.renderer.clear();
+    try self.renderer.renderTexture(self.ui_bg, null, null);
     //no scaling because ui is drawn on a texture.
     inline for (UIElements) |elm| {
         try @field(self, elm).draw(null, self.renderer);

@@ -11,14 +11,11 @@ operations: *OperationManager,
 // data that updated on runtime (when code runs) to keep track and know upfront how to operate based on the past.
 existing_rects: std.hash_map.AutoHashMap(*anyopaque, sdl.rect.IRect),
 
-area: sdl.rect.IRect,
-
-pub fn init(self: *Self, operations: *OperationManager, area: sdl.rect.IRect, allocator: std.mem.Allocator, renderer: sdl.render.Renderer, block_texture_path: []const u8, font: *ttf.TTF_Font) !void {
-    self.data = try Internal.init(allocator, renderer, block_texture_path, font);
+pub fn init(self: *Self, operations: *OperationManager, area: sdl.rect.IRect, allocator: std.mem.Allocator, renderer: sdl.render.Renderer, bg_texture_path: []const u8, block_texture_path: []const u8, font: *ttf.TTF_Font) !void {
+    self.data = try Internal.init(allocator, renderer, area, bg_texture_path, block_texture_path, font);
     self.existing_rects = std.hash_map.AutoHashMap(*anyopaque, sdl.rect.IRect).init(allocator);
     errdefer self.data.deinit();
     self.operations = operations;
-    self.area = area;
 }
 
 pub fn deinit(self: *Self) void {
@@ -150,7 +147,7 @@ fn gappedRect(rect: sdl.rect.IRect, gap: sdl.rect.IntegerType) sdl.rect.IRect {
 fn calculateNewPos(self: *const Self) sdl.rect.IPoint {
     const lowest_block: sdl.rect.IRect = blk: {
         var it = self.existing_rects.iterator();
-        var lowest: sdl.rect.IRect = .{ .x = self.area.x, .y = self.area.y, .w = 1, .h = 1 };
+        var lowest: sdl.rect.IRect = .{ .x = self.data.area.x, .y = self.data.area.y, .w = 1, .h = 1 };
         while (it.next()) |ref| {
             const rect = ref.value_ptr.*;
             std.debug.print("{d}, {d}, {d}, {d}\n", rect);

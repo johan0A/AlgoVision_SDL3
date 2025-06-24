@@ -1,10 +1,8 @@
- - test more complex structures in heap.
- - seperate heap and stack to different areas
- - add background textures for stack, heap and UI
- - redisign ui to look nicer
  - properly implement undo and fastforward
  - add button ui element
  - make fastforward and and undo arrows around current action in ui
- - improve location setting for heap allocations (BIG)
+ - redisign ui to look nicer
+ - improve location setting for heap allocations (BIG) (require bit arene to know which spots are taken)
  - implement pointers for heap (with arrows)
  - implement linked list in a standart library
+ - add ability to move around heap blocks with mouse

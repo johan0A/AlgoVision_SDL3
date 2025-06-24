@@ -11,6 +11,8 @@ renderer: ?sdl.render.Renderer, // an optional to allow "headless" structs
 default_font: *ttf.TTF_Font,
 allocator: std.mem.Allocator,
 draw_scale: usize = 50, //scale between struct rect and texture rect
+area: sdl.rect.IRect,
+bg_texture: ?sdl.render.Texture,
 
 pub const Block = struct {
     rect: sdl.rect.IRect,
@@ -184,16 +186,15 @@ pub fn override(self: *Self, ptr: *anyopaque, block: Block) void {
     block_ptr.* = block;
 }
 
-pub fn init(allocator: std.mem.Allocator, renderer: ?sdl.render.Renderer, block_texture_path: []const u8, font: *ttf.TTF_Font) !Self {
+pub fn init(allocator: std.mem.Allocator, renderer: sdl.render.Renderer, area: sdl.rect.IRect, bg_texture_path: []const u8, block_texture_path: []const u8, font: *ttf.TTF_Font) !Self {
     return Self{
         .blocks = std.hash_map.AutoHashMap(*anyopaque, Block).init(allocator),
-        .byte_bg = blk: {
-            if (renderer) |rndr| {
-                break :blk helpers.loadImage(rndr, block_texture_path, allocator) catch {
-                    @panic("failed to load byte background texture");
-                };
-            }
-            break :blk undefined;
+        .area = area,
+        .byte_bg = helpers.loadImage(renderer, block_texture_path, allocator) catch {
+            @panic("failed to load byte background texture");
+        },
+        .bg_texture = helpers.loadImage(renderer, bg_texture_path, allocator) catch {
+            @panic("failed to load byte background texture");
         },
         .renderer = renderer,
         .default_font = font,
@@ -211,6 +212,11 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn draw(self: *Self, renderer: sdl.render.Renderer, view: ?View) !void {
+    if (self.bg_texture) |bg| {
+        var rect = Self.scaleRect(self.area, self.draw_scale);
+        if (view) |v| rect = v.convertRect(sdl.rect.IntegerType, rect);
+        try renderer.renderTexture(bg, null, rect.asOtherRect(sdl.rect.FloatingType));
+    }
     var it = self.blocks.iterator();
     while (it.next()) |entry| {
         try entry.value_ptr.draw(renderer, self.byte_bg, view, self.draw_scale);
