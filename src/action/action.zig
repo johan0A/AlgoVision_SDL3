@@ -23,6 +23,7 @@ pub const Action = union(enum) {
                 data.stack.push(data.new_text) catch @panic("failed to push new text");
                 if (!is_undo) return .{ .pop = data.stack };
             },
+
             .eval => |data| {
                 const last_text = data.stack.stack_frame.items[data.stack.stack_frame.items.len - 1].text;
                 data.stack.topBlock().setText(data.new_text, data.stack.allocator);
@@ -34,10 +35,12 @@ pub const Action = union(enum) {
                 defer top_block.deinit(data.allocator);
                 if (!is_undo) return .{ .call = .{ .stack = data, .new_text = allocator.dupe(u8, top_block.text) catch unreachable } };
             },
+
             .create => |data| {
                 data.heap.push(data.ptr, data.block.deepCopy(data.heap.allocator)) catch unreachable;
                 if (!is_undo) return .{ .destroy = .{ .heap = data.heap, .ptr = data.ptr } };
             },
+
             .destroy => |data| {
                 if (is_undo) {
                     data.heap.destroy(data.ptr);
@@ -47,6 +50,7 @@ pub const Action = union(enum) {
                     return .{ .create = .{ .heap = data.heap, .block = ret, .ptr = @ptrCast(data.ptr) } }; // for creation undo, ptr is meaningless so I just assign a unique addess
                 }
             },
+
             .override => |data| {
                 if (is_undo) {
                     data.heap.override(data.ptr, data.block.deepCopy(data.heap.allocator));
@@ -58,24 +62,31 @@ pub const Action = union(enum) {
             },
         }
     }
+
     pub fn deinit(action: Action, allocator: std.mem.Allocator) void {
         switch (action) {
             .call => |data| {
                 allocator.free(data.new_text);
             },
+
             .eval => |data| {
                 allocator.free(data.new_text);
             },
+
             .pop => |_| {},
+
             .create => |data| {
                 data.block.deinit(allocator);
             },
+
             .destroy => |_| {},
+
             .override => |data| {
                 data.block.deinit(allocator);
             },
         }
     }
+
     pub fn name(action: Action) []const u8 {
         return @tagName(std.meta.activeTag(action));
     }

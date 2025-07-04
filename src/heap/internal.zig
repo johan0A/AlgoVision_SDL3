@@ -33,13 +33,15 @@ pub const Block = struct {
         };
 
         return Block{
-            .rect = .{ .x = pos.x, .y = pos.y, .h = @intCast(fields.items.len), .w = @intCast(top_width) }, // height updated after appending fields
+            .rect = .{ .x = pos.x, .y = pos.y, .h = @intCast(fields.items.len), .w = @intCast(top_width) },
             .fields = fields,
             .texture_cache = null,
             .design = design,
         };
     }
 
+    //A function used to append all the fields.
+    //This function uses recursion and therefor may not be embeded in the init function.
     fn appendFields(val: anytype, fields: *std.ArrayList(Field), allocator: std.mem.Allocator) void {
         switch (@typeInfo(@TypeOf(val))) {
             .@"struct" => {
@@ -57,8 +59,7 @@ pub const Block = struct {
                         }
                     }
                 } else if (ptr.size == .one) {
-                    var fld = Field.init(@as(*anyopaque, @ptrCast(val)), allocator) catch @panic("field init failure");
-                    fld.ptr = @ptrCast(val);
+                    const fld = Field.init(@intFromPtr(val), allocator) catch @panic("field init failure");
                     fields.append(fld) catch @panic("alloc error");
                 }
             },
@@ -66,7 +67,7 @@ pub const Block = struct {
                 if (val) |real| {
                     appendFields(real, fields, allocator);
                 } else {
-                    fields.append(Field.init(&"null", allocator) catch @panic("field init failure")) catch @panic("alloc error");
+                    fields.append(Field.init(@as([]const u8, "null"), allocator) catch @panic("field init failure")) catch @panic("alloc error");
                 }
             },
             else => { // Handles pointers and other simple types
@@ -101,7 +102,7 @@ pub const Block = struct {
             defer text_texture.deinit();
 
             for (0..@max(field.val.len, field.size)) |width| {
-                try renderer.renderTexture(bg_texture, null, (sdl.rect.Rect(usize){ .x = width * scale, .y = @as(usize, @intCast(self.rect.y)) + i * scale, .w = scale, .h = scale }).asOtherRect(sdl.rect.FloatingType));
+                try renderer.renderTexture(bg_texture, null, (sdl.rect.Rect(usize){ .x = width * scale, .y = i * scale, .w = scale, .h = scale }).asOtherRect(sdl.rect.FloatingType));
             }
             const text_rect =
                 sdl.rect.FRect{ .x = 0, .y = @as(f32, @floatFromInt(i * scale)), .w = @as(f32, @floatFromInt(field.val.len * scale)), .h = @as(f32, @floatFromInt(scale)) };
@@ -229,14 +230,18 @@ const Field = struct {
     ptr: ?*anyopaque,
     pub fn init(val: anytype, allocator: std.mem.Allocator) !Field {
         const val_size = @sizeOf(@TypeOf(val));
+        // std.debug.print("val size: {d}\n", .{val_size});
         const size_str = std.fmt.comptimePrint("{d}", .{val_size});
         const fmt = switch (@TypeOf(val)) {
             u8 => "{c}",
             []u8 => "{s}",
             []const u8 => "{s}",
+            *anyopaque => "PPP{x}",
             else => "{: ^" ++ size_str ++ "}",
         };
+
         const formatted_val = try std.fmt.allocPrint(allocator, fmt, .{val});
+        // std.debug.print("{s}", .{formatted_val});
         return Field{
             .size = val_size,
             .val = formatted_val,
@@ -255,3 +260,15 @@ pub const Design = struct {
     font: *ttf.TTF_Font,
     text_color: sdl.pixels.Color,
 };
+
+pub fn areaRelativeRect(self: *Self, rect: sdl.rect.IRect) sdl.rect.IRect {
+    var ret = rect;
+    ret.x += self.are.x;
+    ret.y += self.are.y;
+}
+
+pub fn absoluteRect(self: *Self, rect: sdl.rect.IRect) sdl.rect.IRect {
+    var ret = rect;
+    ret.x -= self.are.x;
+    ret.y -= self.are.y;
+}

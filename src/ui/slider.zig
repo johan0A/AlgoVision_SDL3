@@ -21,6 +21,9 @@ const Design = struct {
     text_color: sdl.pixels.Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
     text_font: ?*ttf.TTF_Font = null,
     text_convert: ?*const fn (value: f32, buff: []u8) ?[]const u8 = null,
+    pub fn deinit(self: *Design) void {
+        _ = self;
+    }
 };
 
 pub const Slider = ui.interactiveElement(

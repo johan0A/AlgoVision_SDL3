@@ -18,45 +18,22 @@ fn add2(a: i32, b: i32) i32 {
 fn add3(a: i32, b: i32) i32 {
     return a + b;
 }
-// const LinkedList = struct {
-//     value: i32,
-//     next: *LinkedList = null,
-//     const Self = @This();
-
-//    pub fn init(value: i32, heap: Program.Heap, allocator: std.mem.Allocator) *Self {
-//        return heap.create(Self{.value = value,}, allocator);
-//    }
-//    pub fn setNext(self: *Self, )
-// };
 
 pub fn main() !void {
     var program = try Program.init(gpa.allocator());
     global_program = program;
 
-    _ = program.stack.call(add, .{ 3, 5 }, "add");
     var list = std.SinglyLinkedList(i32){ .first = program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 32 }, gpa.allocator()) };
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 3 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 3 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 3 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 44 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 44 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 44 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 44 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 44 }, gpa.allocator()));
-    program.heap.update(list.first.?);
-    list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = 44 }, gpa.allocator()));
-    program.heap.update(list.first.?);
+    var timer = std.time.Timer.start() catch unreachable;
+    for (0..600) |idx| {
+        list.prepend(program.heap.create(std.SinglyLinkedList(i32).Node{ .data = @intCast(idx) }, gpa.allocator()));
+        if (idx % 1 == 0) _ = program.heap.alloc(u8, 12, gpa.allocator());
+        // program.heap.update(list.first.?);
+    }
+    std.debug.print("total: {d}\n", .{timer.read()});
     while (list.popFirst()) |first| {
         program.heap.destroy(first, gpa.allocator());
     }
-    std.debug.print("{d}", .{list.len()});
 
     program.start();
     program.deinit();

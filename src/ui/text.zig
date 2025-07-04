@@ -7,6 +7,9 @@ const helpers = @import("../SDL_helpers.zig");
 const Design = struct {
     font: *ttf.TTF_Font,
     color: sdl.pixels.Color = .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+    pub fn deinit(self: *Design) void {
+        _ = self;
+    }
 };
 
 pub const Text = ui.interactiveElement(

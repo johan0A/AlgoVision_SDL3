@@ -9,6 +9,7 @@ op_queue: std.ArrayList(Operation),
 undo_queue: std.ArrayList(Action),
 allocator: std.mem.Allocator,
 current: usize = 0,
+done: bool = false,
 
 pub fn init(allocator: std.mem.Allocator) Self {
     return .{
@@ -41,8 +42,7 @@ pub fn append(self: *Self, op: Operation) void {
 }
 
 pub fn update(self: *Self, interval_ns: f64, view: ?*View) void {
-    if (self.current >= self.op_queue.items.len)
-        return;
+    if (self.done) return;
 
     const current_op = &self.op_queue.items[self.current];
     if (view) |v| {
@@ -54,7 +54,6 @@ pub fn update(self: *Self, interval_ns: f64, view: ?*View) void {
             }
         }
     }
-
     if (self.op_queue.items[self.current].update(interval_ns, self.allocator)) |ret| {
         switch (ret) {
             .action => |undo| {
@@ -67,13 +66,23 @@ pub fn update(self: *Self, interval_ns: f64, view: ?*View) void {
             },
             .done => {
                 self.current += 1;
+                self.done =
+                    self.current >= self.op_queue.items.len;
+                if (self.done)
+                    self.op_queue.items[self.op_queue.items.len - 1].current_step = .done;
             },
         }
     }
 }
+pub fn incrementCurrent(self: *Self) void {
+    self.current += 1;
+    self.current = @min(self.op_queue.items.len - 1, self.current);
+}
 
 pub fn undoLast(self: *Self) void {
     if (self.current < 2) return;
+    self.done = false;
+    while (self.current >= self.op_queue.items.len) self.current -= 1;
     const current = &self.op_queue.items[self.current];
     if (current.wasPerformed()) {
         current.reset();
@@ -87,7 +96,8 @@ pub fn undoLast(self: *Self) void {
     //    self.printAllUndo();
 }
 pub fn fastForward(self: *Self) void {
-    const current = &self.op_queue.items[self.current];
+    if (self.done) return;
+    const current = if (self.current < self.op_queue.items.len) &self.op_queue.items[self.current] else return;
     if (!current.wasPerformed()) {
         self.undo_queue.append(current.action.perform(self.allocator, false)) catch @panic("alloc error");
     }

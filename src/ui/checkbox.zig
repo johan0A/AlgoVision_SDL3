@@ -23,6 +23,7 @@ fn handleEvent(event: *const sdl.events.Event, value: *bool, relative_mouse_pos:
         value.* = !value.*;
 }
 
+//TODO: move textures to design
 var textures = struct {
     checked: sdl.render.Texture = undefined,
     unchecked: sdl.render.Texture = undefined,

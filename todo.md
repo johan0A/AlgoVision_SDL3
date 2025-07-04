@@ -1,8 +1,4 @@
- - properly implement undo and fastforward
- - add button ui element
- - make fastforward and and undo arrows around current action in ui
- - redisign ui to look nicer
- - improve location setting for heap allocations (BIG) (require bit arene to know which spots are taken)
+ - improve location setting for heap allocations (BIG) (possiblyrequire bit arene to know which spots are taken)
+ (the algorithm is good but not optimized and dosent support edge cases like out of bounds)
  - implement pointers for heap (with arrows)
- - implement linked list in a standart library
  - add ability to move around heap blocks with mouse

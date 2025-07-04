@@ -26,10 +26,12 @@ pub fn update(self: *Self, interval_ns: f64, allocator: std.mem.Allocator) ?unio
             }
             return .{ .animation_state = real_motion.currentRect() };
         },
+
         .act => {
             self.current_step.iterate();
             return .{ .action = self.action.perform(allocator, false) };
         },
+
         .pause => {
             self.pause.update(interval_ns);
             if (!self.pause.running()) {
@@ -37,6 +39,7 @@ pub fn update(self: *Self, interval_ns: f64, allocator: std.mem.Allocator) ?unio
             }
             return null;
         },
+
         .done => {
             self.reset();
             return .{ .done = {} };

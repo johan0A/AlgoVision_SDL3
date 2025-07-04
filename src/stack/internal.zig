@@ -31,6 +31,7 @@ pub fn deinit(self: *Self) void {
     }
     self.stack_frame.deinit();
     self.block_texture.deinit();
+    ttf.TTF_CloseFont(self.default_font);
 }
 
 pub fn draw(self: *Self, renderer: sdl.render.Renderer, view: ?View) !void {

@@ -39,7 +39,10 @@ heap: Heap,
 // UI
 speed_slider: UI.Slider,
 freecam_checkbox: UI.Checkbox,
+freecam_text: UI.Text,
 action_display: UI.Text,
+fastforward_btn: UI.Button,
+undo_btn: UI.Button,
 pause_checkbox: UI.Checkbox,
 ui_texture: sdl.render.Texture = undefined,
 ui_bg: sdl.render.Texture,
@@ -48,7 +51,10 @@ ui_bg: sdl.render.Texture,
 running: bool = true,
 playback_speed: f32 = 1.0,
 pause: bool = false,
+undo_btn_pressed: bool = false,
+freecam_text_data: []const u8 = "Freecam",
 freecam: bool = false,
+fastforward_btn_pressed: bool = false,
 current_action: []const u8 = undefined,
 
 /// initialize a program and return a pointer to it
@@ -79,7 +85,7 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
         },
     };
     const ui_view: View = .{
-        .cam = .{ .x = 0, .y = 0, .w = 1000, .h = 2000 },
+        .cam = .{ .x = 0, .y = 0, .w = 1000, .h = 1000 },
         .port = .{ .x = 0, .y = 0, .w = 420, .h = 840 },
     };
 
@@ -96,16 +102,20 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
         .stack = undefined,
         .heap = undefined,
         .current_action = "Test",
-        .ui_texture = try renderer.createTexture(.packed_rgba_8_8_8_8, .target, 1000, 2000),
+        .ui_texture = try renderer.createTexture(.packed_rgba_8_8_8_8, .target, 1000, 1000),
         .ui_bg = try Helpers.loadImage(renderer, "assets/ui/menu.png", allocator),
+        //TODO: make actual textures for those buttons
+        .fastforward_btn = UI.Button.init(&ret.fastforward_btn_pressed, .{ .x = 800, .y = 50, .w = 150, .h = 150 }, .{ .texture = try Helpers.createTextureFromText(stack_font, ">", .{ .r = 255, .g = 255, .b = 255, .a = 255 }, renderer) }),
+        .undo_btn = UI.Button.init(&ret.undo_btn_pressed, .{ .x = 50, .y = 50, .w = 150, .h = 150 }, .{ .texture = try Helpers.createTextureFromText(stack_font, "<", .{ .r = 255, .g = 255, .b = 255, .a = 255 }, renderer) }),
         .speed_slider = UI.Slider.init(
             &ret.playback_speed,
-            .{ .x = 100, .y = 300, .w = 600, .h = 100 },
+            .{ .x = 50, .y = 265, .w = 700, .h = 70 },
             .{ .range = .{ .min = 0.2, .max = 10 }, .show_text = true, .text_font = stack_font },
         ),
-        .pause_checkbox = UI.Checkbox.init(&ret.pause, .{ .x = 750, .y = 300, .w = 100, .h = 100 }),
-        .freecam_checkbox = UI.Checkbox.init(&ret.freecam, .{ .x = 100, .y = 450, .w = 100, .h = 100 }),
-        .action_display = UI.Text.init(&ret.current_action, .{ .x = 100, .y = 600, .w = 600, .h = 200 }, .{ .font = stack_font }),
+        .pause_checkbox = UI.Checkbox.init(&ret.pause, .{ .x = 770, .y = 250, .w = 200, .h = 100 }),
+        .freecam_checkbox = UI.Checkbox.init(&ret.freecam, .{ .x = 640, .y = 400, .w = 200, .h = 100 }),
+        .freecam_text = UI.Text.init(&ret.freecam_text_data, .{ .x = 20, .y = 400, .w = 600, .h = 100 }, .{ .font = stack_font }),
+        .action_display = UI.Text.init(&ret.current_action, .{ .x = 250, .y = 50, .w = 500, .h = 150 }, .{ .font = stack_font }),
     };
 
     //members must be initiallized after ret has been allocated
@@ -117,6 +127,7 @@ pub fn init(allocator: std.mem.Allocator) !*Self {
     //   ret.callMain();
     return ret;
 }
+
 fn callMain(self: *Self) void {
     const motion = Camera.init(
         3_000_000_000,
@@ -134,19 +145,9 @@ fn callMain(self: *Self) void {
     });
     self.stack.stack_height += 1;
 }
-/// deinitiallize the program
-pub fn deinit(self: *Self) void {
-    self.stack.data.deinit();
-    self.heap.deinit();
-    //TODO: deinit everything else
-    self.op_manager.deinit();
-    Helpers.deinitSDL(self.window, self.renderer, self.allocator);
-    self.allocator.destroy(self);
-}
 
 /// run main program loop
 pub fn start(self: *Self) void {
-    self.op_manager.printAll();
     var timer = std.time.Timer.start() catch @panic("clock error");
     var lap_time: u64 = 0;
     while (self.running) {
@@ -225,6 +226,12 @@ fn handleEvent(self: *Self, event: *const sdl.events.Event) void {
         inline for (UIElements) |elm| {
             @field(self, elm).handleEvent(event, mousepos, self.ui_view);
         }
+        if (self.fastforward_btn_pressed) {
+            self.op_manager.fastForward();
+        }
+        if (self.undo_btn_pressed) {
+            self.op_manager.undoLast();
+        }
     }
 }
 
@@ -251,4 +258,18 @@ fn draw(self: *Self) !void {
     // draw ui texture on window
     try self.renderer.renderTexture(self.ui_texture, null, self.ui_view.port.asOtherRect(sdl.rect.FloatingType));
     try self.renderer.present();
+}
+
+/// deinitiallize the program
+pub fn deinit(self: *Self) void {
+    self.stack.data.deinit();
+    self.heap.deinit();
+    self.op_manager.deinit();
+    inline for (UIElements) |elm| {
+        @field(self, elm).deinit();
+    }
+    self.fastforward_btn.design.texture.deinit();
+    self.undo_btn.design.texture.deinit();
+    Helpers.deinitSDL(self.window, self.renderer, self.allocator);
+    self.allocator.destroy(self);
 }
