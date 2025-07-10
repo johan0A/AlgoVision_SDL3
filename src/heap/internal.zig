@@ -1,6 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl3");
-const ttf = @cImport(@cInclude("SDL3_ttf/SDL_ttf.h"));
+const ttf = @import("ttf")
 const View = @import("../view.zig");
 const helpers = @import("../SDL_helpers.zig");
 const Self = @This();

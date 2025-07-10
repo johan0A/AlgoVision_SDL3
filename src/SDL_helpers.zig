@@ -1,7 +1,7 @@
 const std = @import("std");
 const sdl = @import("sdl3");
-const ttf = @cImport(@cInclude("SDL3_ttf/SDL_ttf.h"));
-const mixer = @cImport(@cInclude("SDL3_mixer/SDL_mixer.h"));
+const ttf = @import("ttf")
+const mixer = @import("mixer");
 var exe_path: []const u8 = undefined;
 
 ///the use of c Libs for ttf and mixer

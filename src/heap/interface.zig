@@ -4,7 +4,7 @@ const SpaceFinder = @import("spacefinder.zig").spaceFinder;
 pub const Internal = @import("internal.zig");
 const OperationManager = @import("../action/operation_manager.zig");
 const Camera = @import("../camera_motion.zig");
-const ttf = @cImport(@cInclude("SDL3_ttf/SDL_ttf.h"));
+const ttf = @import("ttf")
 
 const Self = @This();
 data: Internal,
