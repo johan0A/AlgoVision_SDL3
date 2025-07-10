@@ -37,8 +37,8 @@
     // internet connectivity.
     .dependencies = .{
         .sdl3 = .{
-            .url = "https://github.com/Gota7/zig-sdl3/archive/refs/heads/master.zip",
-            .hash = "sdl3-0.0.1-NmT1Q-AKHADMa6tCkjjOE2C03Y_nW9wvhgMpxxlunCLr",
+            .url = "https://github.com/boyair/zig-sdl3/archive/refs/heads/master.zip",
+            .hash = "sdl3-0.0.1-NmT1Q-sUHADLMmWZBm7Eiuu_mj4jP54yECPc_ASDtr_3",
         },
     },
     .paths = .{
